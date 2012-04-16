@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+	<meta charset="utf-8">
+
+	<meta name="description" content="">
+	<meta name="author" content="">
+
+	<!-- iOS viewport setting, refer to:
+	     http://developer.apple.com/library/IOs/#documentation/AppleApplications/Reference/SafariWebContent/UsingtheViewport/UsingtheViewport.html
+	-->
+	<meta name="viewport" content="width=device-width,initial-scale=1">
+	
+	<link rel="stylesheet" href="qunit/qunit.css" type="text/css">
+	<style>
+		body {
+			font: 12px #323232 "Helvetica";
+			min-width: 1200px;
+		}
+
+		#animations-test {
+			float: left;
+			width: 800px;
+		}
+
+		.test-section {
+			overflow: visible;
+			clear: both;
+		}
+
+		.test-block {
+			border: 1px solid #323232;
+			background: #eee;
+			width: 150px;
+			height: 150px;
+			position: relative;
+			float: left;
+			margin-left: 20px;
+		}
+
+		#qunit-results {
+			margin-left: 800px;
+			width: 600px;
+		}
+	</style>
+	
+	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+	<script src="qunit/qunit.js"></script>
+	<script src="../src/anima.js"></script>
+	<script type="text/javascript">
+		$(document).ready(function(){
+			test("Testing Anima.parseTime", function() {
+					equal(Anima.parseTime("1.0s"), "1.0s", "Default case");
+					equal(Anima.parseTime("100ms"), "100ms", "Milliseconds");
+					equal(Anima.parseTime("1.0"), "1s", "No unit case");
+					equal(Anima.parseTime("1.5"), "1.5s", "No unit case");
+					equal(Anima.parseTime(1.0), "1s", "Numeric case");	
+					});	
+
+			test("Testing Anima.parseParams", function() {
+					equal(Anima.parseParams("100px", "left"), "100px", "left");
+					equal(Anima.parseParams("100", "left"), "100px", "left");
+					equal(Anima.parseParams("100asdf", "left"), "100px", "left");
+					equal(Anima.parseParams(100, "left"), "100px", "left");
+					equal(Anima.parseParams("100pt", "left"), "100pt", "left");
+
+					equal(Anima.parseParams("100px", "top"), "100px", "top");
+					equal(Anima.parseParams("100", "top"), "100px", "top");
+					equal(Anima.parseParams("100asdf", "top"), "100px", "top");
+					equal(Anima.parseParams(100, "top"), "100px", "top");
+					equal(Anima.parseParams("100em", "top"), "100em", "top");
+
+					equal(Anima.parseParams("1.0", "scale"), 1, "scale");
+					equal(Anima.parseParams("1.5", "scale"), 1.5, "scale");
+					equal(Anima.parseParams(1.0, "scale"), 1, "scale");
+					equal(Anima.parseParams(1.5, "scale"), 1.5, "scale");
+					
+					equal(Anima.parseParams("1.0", "opacity"), 1, "opacity");
+					equal(Anima.parseParams("1.5", "opacity"), 1, "opacity");
+					equal(Anima.parseParams("0.6", "opacity"), 0.6, "opacity");
+					equal(Anima.parseParams("-0.4", "opacity"), 0, "opacity");
+					equal(Anima.parseParams(1.0, "opacity"), 1, "opacity");
+					equal(Anima.parseParams(1.5, "opacity"), 1, "opacity");
+					equal(Anima.parseParams(0.6, "opacity"), 0.6, "opacity");
+					equal(Anima.parseParams(-0.4, "opacity"), 0, "opacity");
+			});
+
+			test("Testing synchronous animations", function() {
+					expect(4);
+					stop();
+
+					var testBlock = $("#tb1");
+					Anima.queue(testBlock, {
+							left: 100,
+							scale: 1.5
+						}, 1, function() {
+							ok(true, "first animation");	
+						})
+						.queue(testBlock, {
+							"left": 200,
+							"scale": 1,
+							"opacity": 0
+						}, 1, function() {
+							ok(true, "second animation");	
+						})
+						.queue(testBlock, {
+							"left": "50px",
+							"scale": 0.5,
+							"opacity": 1
+						}, 1, function() {
+							ok(true, "third animation");	
+						});
+					Anima.queue(testBlock, {
+							"left": 0,
+							"scale": 1
+						}, 1, function() {
+							ok(true, "forth animation");	
+							start();						
+						});
+
+					Anima.play();
+			});
+
+//			return;
+
+			test("Testing concurrent animations", function() {
+				expect(8);
+				stop();
+
+				var tb2 = $("#tb2");
+				var tb3 = $("#tb3");
+				var tb4 = $("#tb4");
+
+				var frame = new Anima.Frame(function() {
+					ok(true, "frame 1 concurrent callback");		
+					console.log('test')
+				});
+
+				frame.queue(tb2, {
+					"left": 100,
+					"scale": 1.2
+				}, 2, function() {
+					ok(true, "frame 1 animation 1");		
+				});
+				
+				frame.queue(tb3, {
+					"top": -100,
+					"scale": 0.6
+				}, 2, function() {
+					ok(true, "frame 1 animation 2");		
+				});
+
+				frame.queue(tb4, {
+					"top": 100,
+					"scale": 1.2
+				}, 2, function() {
+					ok(true, "frame 1 animation 3");		
+				});
+
+				Anima.queue(frame);
+				
+				frame = new Anima.Frame(function() {
+					console.log("endgame");
+					ok(true, "frame 2 concurrent callback");		
+					start();
+				});
+
+				frame.queue(tb2, {
+					"left": 0,
+					"scale": 1
+				}, 2, function() {
+					ok(true, "frame 2 animation 1");		
+				});
+				
+				frame.queue(tb3, {
+					"top": 0,
+					"scale": 1
+				}, 2, function() {
+					ok(true, "frame 2 animation 2");		
+				});
+
+				frame.queue(tb4, {
+					"top": 0,
+					"scale": 1
+				}, 2, function() {
+					ok(true, "frame 2 animation 3");		
+					});
+
+				Anima.queue(frame);
+				Anima.play();
+					
+			});
+
+		});
+	</script>
+	<title>Anima Test Suite</title>
+</head>
+
+<body>
+	<div id="animations-test">
+		<h1>Anima Test Suite</h1>
+		<div class="test-section">
+			<h2>Sequential Animation</h2>
+			<div id="tb1" class="test-block"></div>
+		</div>
+		<div class="test-section">
+			<h2>Concurrent Animation</h2>
+			<div id="tb2" class="test-block"></div>
+			<div id="tb3" class="test-block"></div>
+			<div id="tb4" class="test-block"></div>
+		</div>
+	</div>
+	<div id="qunit-results">
+		<h1 id="qunit-header">Anima Test Suite</h1>
+		<h2 id="qunit-banner"></h2>
+		<div id="qunit-testrunner-toolbar"></div>
+		<h2 id="qunit-userAgent"></h2>
+		<ol id="qunit-tests"></ol>
+		<div id="qunit-fixture">test markup, will be hidden</div>
+	</div>
+</body>
+
+</html>
