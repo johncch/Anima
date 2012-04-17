@@ -184,12 +184,119 @@
 					"scale": 1
 				}, 2, function() {
 					ok(true, "frame 2 animation 3");		
-					});
+				});
 
 				Anima.queue(frame);
 				Anima.play();
 					
 			});
+
+			test("Testing concurrent functions 2", function() {
+				expect(8);
+				stop();
+
+				var tb2 = $("#tb2");
+				var tb3 = $("#tb3");
+				var tb4 = $("#tb4");
+
+				tb2.removeAttr("style");
+				tb3.removeAttr("style");
+				tb4.removeAttr("style");
+	
+				Anima.frame([
+					{
+						element: tb2,
+						properties: {
+							top: 100
+						},
+						duration: 2,
+						callback: function() {
+							ok(true, "first frame animation");
+						}
+					},
+					{
+						element: tb3,
+						properties: {
+							top: -100
+						},
+						duration: 2,
+						callback: function() {
+							ok(true, "second frame animation");
+						}
+					},
+					{
+						element: tb4,
+						properties: {
+							left: 100
+						},
+						duration: 2,
+						callback: function() {
+							ok(true, "third frame animation");
+						}
+					}
+				], function() {
+					ok(true, "finishing the frame");
+				});
+				
+				Anima.frame([
+					{
+						element: tb2,
+						properties: {
+							top: 0
+						},
+						duration: 0.3,
+						callback: function() {
+							ok(true, "first frame animation");
+						}
+					},
+					{
+						element: tb3,
+						properties: {
+							top: 0
+						},
+						duration: 0.4,
+						callback: function() {
+							ok(true, "second frame animation");
+						}
+					},
+					{
+						element: tb4,
+						properties: {
+							left: "0"
+						},
+						duration: 1,
+						callback: function() {
+							ok(true, "third frame animation");
+						}
+					}
+				], function() {
+					ok(true, "finishing the frame");
+					start();	
+				});
+
+				Anima.step(function() {
+					Anima.step();		
+				});
+			});
+
+			test("Testing array input", function() {
+				expect(1);
+				stop();
+
+				var tb2 = $("#tb2");
+				var tb3 = $("#tb3");
+				var tb4 = $("#tb4");
+
+				Anima.queue([tb2, tb3, tb4], {
+					"left": 100,
+					"opacity": 0.5
+				}, 0.5, function() {
+					ok(true, "all 3 ran");
+					start();
+				});			
+				Anima.play();
+			});
+
 
 		});
 	</script>
