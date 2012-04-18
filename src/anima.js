@@ -293,9 +293,22 @@ var Anima = (function() {
 	// The frame exposes the same methods as the base object. However, the queue method
 	// only adds to the current frame.
 	Anima.Frame.prototype.queue = function(el, options, duration, delay, callback) {
-		this.operations.push(
-			new Anima.Animation(el, options, duration, delay, callback)		
-		);
+		if (el.length && el.length > 1) {
+			debug(typeof delay);
+			if (typeof delay == "function") {
+				callback = delay;
+				delay = null;
+			}
+			for (var i = 0; i < el.length; i++) {
+				var _el = el[i];
+				this.queue(_el, options, duration, delay);
+			}
+			this.complete(callback);
+		} else {
+			this.operations.push(
+				new Anima.Animation(el, options, duration, delay, callback)		
+			);	
+		}
 		return this;
 	};
 
