@@ -44,7 +44,7 @@
 		}
 	</style>
 	
-	<script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script>
+	<script src="js/jquery-1.7.2.min.js"></script>
 	<script src="qunit/qunit.js"></script>
 	<script src="../src/anima.js"></script>
 	<script type="text/javascript">
@@ -133,7 +133,6 @@
 
 				var frame = new Anima.Frame(function() {
 					ok(true, "frame 1 concurrent callback");		
-					console.log('test')
 				});
 
 				frame.queue(tb2, {
@@ -160,7 +159,6 @@
 				Anima.queue(frame);
 				
 				frame = new Anima.Frame(function() {
-					console.log("endgame");
 					ok(true, "frame 2 concurrent callback");		
 					start();
 				});
@@ -280,6 +278,73 @@
 			});
 
 			test("Testing array input", function() {
+				expect(3);
+				stop();
+
+				var tb2 = $("#tb2");
+				var tb3 = $("#tb3");
+				var tb4 = $("#tb4");
+
+				Anima.queue([tb2, tb3, tb4], {
+					"left": 100,
+					"opacity": 0.5
+				}, 0.5, function() {
+					ok(true, "frame 1");
+				});			
+				Anima.queue([tb2, tb3, tb4], {
+					"left": 0,
+					"opacity": 1
+				}, 0.5, function() {
+					ok(true, "frame 2");
+					start();
+				});			
+				Anima.play(function() {
+					ok(true, "complete");
+					start();	
+				});
+			});
+			
+			test("Aborting a single element", function() {
+				expect(2);
+				stop();
+
+				var testBlock = $("#tb1");
+				Anima.queue(testBlock, {
+						left: 100,
+						scale: 1.5
+					}, 1, function() {
+						ok(true, "first animation");	
+						alert("You should not see this");
+					});
+				Anima.queue(testBlock, {
+						"left": 200,
+						"scale": 1,
+						"opacity": 0
+					}, 1, function() {
+						ok(true, "second animation");	
+						alert("You should not see this");
+					});
+
+				var runner = Anima.play();
+				setTimeout(function() {
+					runner.abort();
+					ok(true, "Mission aborted!");
+				}, 500);
+
+				setTimeout(function() {
+					Anima.queue(testBlock, {
+						"left": 0,
+						"scale": 1
+					}, 1, function() {
+						ok(true, "Finished!");
+						start();
+					});
+					Anima.play();
+				}, 900);
+
+			});
+
+			test("Aborting a frame", function() {
 				expect(1);
 				stop();
 
@@ -291,12 +356,32 @@
 					"left": 100,
 					"opacity": 0.5
 				}, 0.5, function() {
-					ok(true, "all 3 ran");
-					start();
+					alert("You should not see this");
+					ok(true, "frame 1");
 				});			
-				Anima.play();
-			});
+				Anima.queue([tb2, tb3, tb4], {
+					"left": 200,
+					"scale": 2
+				}, 1, function() {
+					alert("You should not see this");
+					ok(true, "frame 1");
+				});
+				var runner = Anima.play(function() {
+					alert("You should not see this");		
+				});
 
+				setTimeout(function() {
+					runner.abort();
+					Anima.queue([tb2, tb3, tb4], {
+						"left": 0,
+						"opacity": 1
+					}, 0.5, function() {
+						ok(true, "Back to original");
+						start();
+					});		
+					Anima.play();
+				}, 300);	
+			});
 
 		});
 	</script>
