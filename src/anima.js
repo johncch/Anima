@@ -1,17 +1,20 @@
-// Anima: a simple CSS3 transisions helper library
+// Anima: A simple CSS transisions helper library
 // 
-// Anima is designed to enable CSS3 animations via a simple JavaScript api.
-// This library is designed to support the following
-// 1. Extensive callback support - every animation on an element supports callback
-// 2. Concurrent and synchronous support - Animations can be queued and executed
-//         or executed as a frame
-// 3. TODO fallback to no animations
-// 
-// Currently this library is tested on Chrome and Firefox, support for other browsers
-// will come in as I test them.
+// Anima is designed to enable CSS transitions via a simple JavaScript api.
+// This library is designed to support:
 //
-// author: Chong Han Chua
-// License: MIT
+// 1. Queuing a series of animations
+// 2. Running a series of animations concurrently
+// 3. Having callbacks at the end of each animation, or an animation frame
+// 4. Cancel existing animation queues
+// 5. Fallback to simple CSS styles if the browser does not support CSS transitions
+//
+// Anima 0.2
+//
+// (c) 2012 Chong Han Chua
+//
+// Anima may be freely distributed under the MIT license
+// http://github.com/johncch/Anima
 var Anima = (function() {
 
 	var Anima = {};
@@ -25,12 +28,12 @@ var Anima = (function() {
 		setTimeout(fn, 10);
 	};
 
-	var DEBUG = true;
+	var DEBUG = false;
 	var debug = function(msg) {
 		if (DEBUG && window.console !== undefined) {
 			console.log(msg);
 		}
-	}
+	};
 
 	// Test for vendor extension
 	var PREFIX = (function() {
@@ -40,7 +43,6 @@ var Anima = (function() {
 		for (var i = 0; i < VENDORS.length; i++) {
 			var prefix = VENDORS[i];
 			div.cssText = "-" + prefix + "-transition-property:opacity;";
-	//		alert(typeof div.style[prefix + "TransitionProperty"]);
 			if (typeof div.style[prefix + "TransitionProperty"] != "undefined") {
 				return prefix;
 			}
@@ -111,6 +113,8 @@ var Anima = (function() {
 		};
 	};
 
+	// Takes in a string or number and returns a formatted string
+	//
 	// @return time - in a format that css understands
 	Anima.parseTime = function(time, def) {
 		if (!time) {
@@ -165,6 +169,7 @@ var Anima = (function() {
 	var operations = [];
 	var runners = [];
 
+	// A convenience method that removes the stored runner object.
 	var removeRunner = function(obj) {
 		for (var i = 0; i < runners.length; i++) {
 			if(runners[i] === obj) {
@@ -223,6 +228,8 @@ var Anima = (function() {
 
 	// This is where the animation is actually executed
 	Anima.Animation.prototype.run = function(_innerCallback) {
+
+		// For the CSS3 transition case, setup the callbacks and properties
 		if(CSS3_TRANSITIONS) {
 			// Fixes the flickering in Chrome
 			// TODO need to figure out how to better integrate
@@ -253,23 +260,23 @@ var Anima = (function() {
 			for (var key in this.style) {
 				debug("executing " + key + ": " + this.style[key]);
 				this.element.style[key] = this.style[key];
-			}
+			}	
+		} 
 
-			for (var css in this.properties) {
-				debug("executing " + css + ": " + this.properties[css]);
-				this.element.style[css] = this.properties[css];
-			}
+		for (var css in this.properties) {
+			debug("executing " + css + ": " + this.properties[css]);
+			this.element.style[css] = this.properties[css];
+		}
 		
-		} else {
-			for (var css in this.properties) {
-				debug("executing " + css + ": " + this.properties[css]);
-				this.element.style[css] = this.properties[css];
-			}
+		// For the non CSS3 transition case, call the callbacks immediately.
+		if (!CSS3_TRANSITIONS) {
 			if(this.callback) this.callback.call(this.element);
 			if(_innerCallback) async(_innerCallback);
 		}
 	};
 
+	// "Abort" the current animation by removing all listening callbacks. Since
+	// animation is handled by CSS transitions, it cannot actually be stopped.
 	Anima.Animation.prototype.abort = function() {
 		this.element.removeEventListener(CONSTANTS.TransitionEnd, this.completionHandler);
 	};
@@ -303,10 +310,10 @@ var Anima = (function() {
 			debug("run concurrent callback " + cbLen);
 			if ((--cbLen) === 0 && (frameCallback || runCallback)) {
 				if (frameCallback) 
-					async(frameCallback);
+					frameCallback.call();
 				
 				if (runCallback) {
-					async(runCallback);
+					runCallback.call();
 				}
 			}
 		};
@@ -322,6 +329,7 @@ var Anima = (function() {
 		this.callback = callback;	
 	};
 
+	// Abort all animations in the frame
 	Anima.Frame.prototype.abort = function() {
 		for (var i = 0; i < this.operations.length; i++) {
 			this.operations[i].abort();
@@ -329,12 +337,15 @@ var Anima = (function() {
 	};
 
 
-	
+	// The runner is an Animation Runner, an object responsible for making sure
+	// a series of animations are ran correctly.
 	Anima.Runner = function(_operations) {
 		this.operations = (_operations instanceof Array) ? _operations : [_operations];
 		this.activeOp = null;
 	};
 
+	// Runs all the animations in this runner. This method is typically not called
+	// by the consumer.
 	Anima.Runner.prototype.run = function(_callback) {
 		var opLen = this.operations.length;
 		var cbLen = opLen;
@@ -343,13 +354,13 @@ var Anima = (function() {
 		var $activeOp = this.activeOp;
 		var runnerCallback = function() {
 			debug("inside runner callback");
-			if(--cbLen == 0) {
+			if(--cbLen === 0) {
 				removeRunner(self);
-				if(_callback) async(_callback);
+				if(_callback) _callback.call();
 			} else {
 				var animation = $operations.shift();
 				self.activeOp = animation;
-				animation.run(runnerCallback)
+				animation.run(runnerCallback);
 			}
 		};
 		runners.push(this);
@@ -358,6 +369,8 @@ var Anima = (function() {
 		async(function() { animation.run(runnerCallback); });
 	};
 
+	// Aborts the currently running animation and cancels all animations in the
+	// queue.
 	Anima.Runner.prototype.abort = function() {
 		debug("aborting");
 		this.operations = [];
@@ -366,6 +379,7 @@ var Anima = (function() {
 	};
 
 
+	// ## Public APIs
 
 	// The queue function. An animation sequence is defined and then queued. The
 	// animation is not played immediately unti the play() function is called.
@@ -421,7 +435,8 @@ var Anima = (function() {
 		return frame;
 	};
 
-	// Play all the animations currently in the queue, sequentially.
+	// Play all the animations currently in the queue, sequentially. The callback
+	// is optional
 	Anima.play = function(_callback) {
 		var runner = new Anima.Runner(operations);
 		operations = [];
@@ -429,7 +444,7 @@ var Anima = (function() {
 		return runner; 
 	};
 
-	// Plays only one animation in the queue;
+	// Plays only one animation in the queue. The callback is optional.
 	Anima.step = function(_callback) {
 		var animation = operations.shift();
 		var runner = new Anima.Runner(animation);
@@ -437,12 +452,17 @@ var Anima = (function() {
 		return runner;
 	};
 
-	// Plays one animation immediately
+	// Plays one animation immediately. This is a convenience method that essentially
+	// calls a queue then a step immediately.
 	Anima.animate = function(el, options, duration, delay, callback) {
 		Anima.queue(el, options, duration, delay, callback);
 		Anima.step();
 	};
 
+	// Aborts all currently running animations.
+	// Since this is CSS3 animations, you can't actually stop it halfway. What 
+	// this method actually does though is cancelling any queued up animations,
+	// and preventing existing handlers from firing.
 	Anima.abort = function() {
 		for (var i = 0; i < runners.length; i++) {
 			runners[i].abort();

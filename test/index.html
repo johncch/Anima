@@ -296,12 +296,14 @@
 					"opacity": 1
 				}, 0.5, function() {
 					ok(true, "frame 2");
-					start();
 				});			
+
 				Anima.play(function() {
 					ok(true, "complete");
-					start();	
+					start();
 				});
+				
+				// setTimeout(function() { start() }, 1000);	
 			});
 			
 			test("Aborting a single element", function() {

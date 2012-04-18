@@ -2,27 +2,54 @@
 A tiny CSS library for animating DOM elements using CSS transitions.                               
 
 ## Installation
-    <script src="anima.js" type="text/css"></script>
+Download the javascript and include it in your header
+
+    <script src="anima.js" type="text/javascript"></script>
     
 ## Features
-Anima was created with 2 things in mind:
+Anima was created to solve the following problems
 
-1. Support for sequential animations
-2. Support for concurrent animations using the concept of a Frame.
+* Applying multiple animations sequentially
+* Applying CSS transitions in a clean manner
+* Callbacks to CSS transitions in an efficient manner (display none after opacity is set to 0 for example)
+* Callbacks after a series of transitions with varying times
+* And generally getting out of your way when coding a JavaScript Application
 
-A simple example is as follows:
+A good use of this library would be on click handlers or state changes in a JS application.
+
+Anima will be battle tested in socialist. All contribution and critique is welcome.
+
+## Quickstart
+
+Anima has the concept of an animation frame and animation unit. An animation unit is a desired transition that is to be applied on a HTML element. An animation unit can be added as follows:
 
     Anima.queue(element, {
         left: 10,
         opacity: 0
     }, 0.4, function() {
-        console.log("completed animation!);
+        console.log("completed animation!");
     });
+    
+The animation is then added to the global queue. This however does not play the animation. To play the transition,
+
     Anima.play();
     
-Remember that all animations are queued up until the play function is called.
+Remember that all animations are queued up until the play function is called. If you call queue multiple times, each animation is add to the end of the queue. When the `play()` function is called, they will run sequentially.
 
-Also, to run animations concurrently
+To run animations concurrently, Anima introduces the concept of a frame:
+
+    var frame = new Anima.Frame();
+    frame.queue(element, {
+        left: 10,
+        opacity: 0
+    }, 0.4, function() {
+        console.log("completed animation!");
+    });
+    Anima.queue(frame);
+    Anima.play();
+    
+By queuing animations onto a frame, all animation units in the frame will be played in the same time. There is also a convenience method:
+
     Anima.frame([
         {
             element: el,
@@ -38,26 +65,96 @@ Also, to run animations concurrently
             duration: "100ms"
         }
     ]
-    Anima.play()
+    Anima.play();
 
+All play methods return a `Runner` object. The `Runner` object allows you to cancel a series of animations by calling:
+
+    var runner = Anima.play();
+    // ... some code
+    runner.abort();
 
 For more examples, look at the test page located under test/ 
 
-                                                                                                                                                          
-## Warning
-This version can only be considered alpha. There are a few areas that                                                                         
+## API
 
-1. Implement a non CSS fallback. CSS changes will be executed immediately.                                                      
-2. Debug for Opera
-3. Test on IE browsers
-4. Document          
+#### Queue
+    
+    Anima.queue(element, options, duration [, delay] [, callback])
 
-TODO: Look at all the async functions and resolve them.
+returns the Anima object
+    
+#### Frame
+    
+    Anima.frame(operations [, callback])
+    
+operations is an array with the following objects:
+
+    {
+	     element: (Dom Element),
+	     properties: (Object of key value pairs),
+	     duration: (time in s or ms | number for s or string),
+	     delay: (time in s or ms | number for s or string | optional),
+	     callback: (callback function | optional)
+    }
+
+returns the frame object
+
+#### Play
+
+    Anima.play([callback]);
+    
+Returns a runner object
+    
+#### Step
+Runs one animation or frame in the queue
+
+    Anima.step([callback]);
+
+Returns a runner object
+    
+#### Animate
+Convenience function to add one animation and run it immediately
+
+    Anima.animate(element, properties, duration [, delay] [, callback]);
+
+
+#### Abort
+Aborts all current running animations
+
+    Anima.abort();
+    
+### Anima.Frame
+
+Create a new frame:
+
+    var frame = new Anima.Frame();
+
+#### Queue
+
+    frame.queue(element, options, duration [, delay] [, callback])
+
+returns the frame object
+
+### Anima.Runner
+
+Returned from the `play()` or `step()` functions
+
+#### Abort
+
+Abort the current sequence of animations
+
+    runner.abort();
+
+## Limitations
+
+* Anima currently does not support timing functions. This should not be a difficult fix.
+* Since this is CSS based, don't apply multiple animations on a single element at once. It's ok to have multiple properties in one animation unit, but don't apply multiple animation units concurrently on one element. Bad things will happen
+* The list of supported CSS properties is currently very limited. It will be added as I use and require more. Feel free to make a pull request or feature request
                                            
 ## License                                                                      
 (The MIT License)
 
-Copyright (c) 2012 Chong Han Chua (johncch@live.com)
+Copyright (c) 2012 Chong Han Chua <johncch@live.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
