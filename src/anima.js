@@ -280,6 +280,19 @@ var Anima = (function() {
 	Anima.Animation.prototype.abort = function() {
 		this.element.removeEventListener(CONSTANTS.TransitionEnd, this.completionHandler);
 	};
+	
+	// Finishes the current animation by applying the CSS property immediately
+	Anima.Animation.prototype.finish = function() {
+		this.element.removeEventListener(CONSTANTS.TransitionEnd, this.completionHandler);
+		for (var key in this.style) {
+			this.element.style[key] = "";
+		}
+		for (var css in this.properties) {
+			debug("executing " + css + ": " + this.properties[css]);
+			this.element.style[css] = this.properties[css];
+		}
+		if(this.callback) this.callback.call(this.element);
+	};
 
 
 
@@ -319,6 +332,7 @@ var Anima = (function() {
 		var cbLen = opLen;
 		debug("running " + cbLen);
 		var frameCallback = this.callback;
+		this.runCallback = runCallback;
 		var concurrentCB = function() {
 			debug("run concurrent callback " + cbLen);
 			if ((--cbLen) === 0 && (frameCallback || runCallback)) {
@@ -348,6 +362,13 @@ var Anima = (function() {
 			this.operations[i].abort();
 		}
 	};
+	
+	Anima.Frame.prototype.finish = function() {
+		for (var i = 0; i < this.operations.length; i++) {
+			this.operations[i].finish();
+		}
+		if(this.runCallback) this.runCallback.call();
+	};
 
 
 	// The runner is an Animation Runner, an object responsible for making sure
@@ -365,6 +386,7 @@ var Anima = (function() {
 		var self = this;
 		var $operations = this.operations;
 		var $activeOp = this.activeOp;
+		this.callback = _callback;
 		var runnerCallback = function() {
 			debug("inside runner callback");
 			if(--cbLen === 0) {
@@ -388,6 +410,15 @@ var Anima = (function() {
 		debug("aborting");
 		this.operations = [];
 		this.activeOp.abort();
+		removeRunner(this);
+	};
+	
+	Anima.Runner.prototype.finish = function() {
+		this.activeOp.finish();
+		for (var i = 0; i < this.operations.length; i++) {
+			this.operations[i].finish();
+		}
+		if (this.callback) this.callback.call(this); 
 		removeRunner(this);
 	};
 
@@ -481,6 +512,12 @@ var Anima = (function() {
 			runners[i].abort();
 		}
 	};
+	
+	Anima.finish = function() {
+		for (var i = 0; i < runners.length; i++) {
+			runners[i].finish();
+		}
+	}
 
 	return Anima;
 })();
