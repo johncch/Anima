@@ -94,6 +94,8 @@ You can also set default values for duration, delay and timingFunction by settin
 	Anima.Defaults.Delay = "100s"
 	Anima.Defaults.TimingFunction = "ease-in"
 
+If the browser does not support CSS transitions, CSS property changes will happen immediately and callbacks will fire.
+
 For more examples, look at the test page located under test/ 
 
 ## API
@@ -104,14 +106,14 @@ For more examples, look at the test page located under test/
 
 or
 
-	Anima.queue{
-		element: ,
-		properties: ,
-		duration: ,
-		delay: ,
-		timingFunction: ,
-		callback: 
-	}
+	Anima.queue({
+	     element: (Dom Element),
+	     properties: (Object of key value pairs),
+	     duration: (time in s or ms | number for s or string),
+	     delay: (time in s or ms | number for s or string | optional),
+		 timingFunction: (timing function in string),
+	     callback: (callback function | optional)
+	})
 
 returns the Anima object
     
@@ -126,6 +128,7 @@ operations is an array with the following objects:
 	     properties: (Object of key value pairs),
 	     duration: (time in s or ms | number for s or string),
 	     delay: (time in s or ms | number for s or string | optional),
+		 timingFunction: (timing function in string),
 	     callback: (callback function | optional)
     }
 
@@ -147,8 +150,9 @@ Returns a runner object
 #### Animate
 Convenience function to add one animation and run it immediately
 
-    Anima.animate(element, properties, duration [, delay] [, callback]);
+    Anima.animate(element, properties, duration [, delay] [, timingFunction] [, callback]);
 
+Accepts object notation as well
 
 #### Abort
 Aborts all current running animations
@@ -157,40 +161,44 @@ Aborts all current running animations
     
 ### Anima.Frame
 
+Frame object. Represents one or more animations to be executed concurrently. 
+
 Create a new frame:
 
     var frame = new Anima.Frame();
 
-#### Queue
+#### Frame.Queue
 
-    frame.queue(element, options, duration [, delay] [, callback])
+    frame.queue(element, options, duration [, delay] [, timingFunction]  [, callback])
 
-returns the frame object
+returns the frame object. Supports object notation as well.
 
 ### Anima.Runner
 
 Returned from the `play()` or `step()` functions
 
-#### Abort
+### Anima.Abort/Runner.Abort/Frame.Abort
 
-Abort the current sequence of animations
+Abort the current sequence of animations based on the scope of global (Anima), a play sequence (Runner) or a frame (Frame)
 
     runner.abort();
 
-#### Finish
 
-Finish the current sequence of animations i.e. force to the last frame
+#### Anima.Finish/Runner.Finish/Frame.Finish
+
+Finish the current sequence of animations i.e. force to the last frame based on the scope of global (Anima), a play sequence (Runner) or a frame (Frame)
 
     Anima.finish([performCallback])
 
-or
+finishes all current running animations, or
 
     runner.finish([performCallback])
 
-Finish takes an optional `performCallback` boolean. If the boolean is not provided, it is assumed to be true. If the boolean is false, callbacks will then not fire.
+finishes the animation runned by the current runner. Finish takes an optional `performCallback` boolean. If the boolean is not provided, it is assumed to be true. If the boolean is false, callbacks will then not fire.
 
 ## Limitations
 
+* Currently, if the transition does not trigger an actual change (there is no property change), the callbacks will not fire. This is consistent with the CSS TransitionEnd property being fired. Unfortunately, this means that a bunch of things break. Will consider fixing this in the future.
 * Since this is CSS based, don't apply multiple animations on a single element at once. It's ok to have multiple properties in one animation unit, but don't apply multiple animation units concurrently on one element. Bad things will happen
 * The list of supported CSS properties is currently very limited. It will be added as I use and require more. Feel free to make a pull request or feature request
                                            
