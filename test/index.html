@@ -85,6 +85,51 @@
 					equal(Anima.parseParams(-0.4, "opacity"), 0, "opacity");
 			});
 
+			test("Testing Parse Arguments", 24, function() {
+				var div = $("<div>");
+				var emptyFn = function() {};
+				var properties = { "left": 10 };
+
+				var args = Anima.parseArguments(div, properties, 10, 1, "linear", emptyFn);
+				equal(args.element, div[0], "element");
+				equal(args.properties, properties, "properties");
+				equal(args.duration, 10, "duration");
+				equal(args.delay, 1, "delay");
+				equal(args.timingFunction, "linear", "timingFunction");
+				equal(args.callback, emptyFn, "callback");
+
+				args = Anima.parseArguments(div, properties, 10, emptyFn);
+				equal(args.element, div[0], "element");
+				equal(args.properties, properties, "properties");
+				equal(args.duration, 10, "duration");
+				equal(args.delay, undefined, "delay");
+				equal(args.timingFunction, undefined, "timingFunction");
+				equal(args.callback, emptyFn, "callback");
+				
+				args = Anima.parseArguments(div, properties, 10, "linear");
+				equal(args.element, div[0], "element");
+				equal(args.properties, properties, "properties");
+				equal(args.duration, 10, "duration");
+				equal(args.delay, undefined, "delay");
+				equal(args.timingFunction, "linear", "timingFunction");
+				equal(args.callback, undefined, "callback");
+
+				args = Anima.parseArguments({
+					element: div,
+					properties: properties,
+					duration: 10,
+					delay: 1,
+					timingFunction: "linear",
+					callback: emptyFn
+				});
+				equal(args.element, div[0], "element");
+				equal(args.properties, properties, "properties");
+				equal(args.duration, 10, "duration");
+				equal(args.delay, 1, "delay");
+				equal(args.timingFunction, "linear", "timingFunction");
+				equal(args.callback, emptyFn, "callback");
+			});
+
 			test("Testing synchronous animations", function() {
 					expect(4);
 					stop();
@@ -120,8 +165,6 @@
 
 					Anima.play();
 			});
-
-//			return;
 
 			test("Testing concurrent animations", function() {
 				expect(8);

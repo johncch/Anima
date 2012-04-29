@@ -34,6 +34,21 @@ The animation is then added to the global queue. This however does not play the 
 
     Anima.play();
     
+Anima now supports an alternate object notation
+
+    Anima.queue({
+		element: el,
+		properties: {
+			"left": 10
+		},
+		duration: 10,
+		delay: 0,
+		timingFunction: "linear",
+		callback: function() {
+			// do something
+		}
+	});
+
 Remember that all animations are queued up until the play function is called. If you call queue multiple times, each animation is add to the end of the queue. When the `play()` function is called, they will run sequentially.
 
 To run animations concurrently, Anima introduces the concept of a frame:
@@ -47,7 +62,7 @@ To run animations concurrently, Anima introduces the concept of a frame:
     });
     Anima.queue(frame);
     Anima.play();
-    
+
 By queuing animations onto a frame, all animation units in the frame will be played in the same time. There is also a convenience method:
 
     Anima.frame([
@@ -73,13 +88,30 @@ All play methods return a `Runner` object. The `Runner` object allows you to can
     // ... some code
     runner.abort();
 
+You can also set default values for duration, delay and timingFunction by setting
+
+    Anima.Defaults.Duration = "100ms"
+	Anima.Defaults.Delay = "100s"
+	Anima.Defaults.TimingFunction = "ease-in"
+
 For more examples, look at the test page located under test/ 
 
 ## API
 
 #### Queue
     
-    Anima.queue(element, options, duration [, delay] [, callback])
+    Anima.queue(element, properties, duration [, delay] [, timingFunction] [, callback])
+
+or
+
+	Anima.queue{
+		element: ,
+		properties: ,
+		duration: ,
+		delay: ,
+		timingFunction: ,
+		callback: 
+	}
 
 returns the Anima object
     
@@ -145,9 +177,20 @@ Abort the current sequence of animations
 
     runner.abort();
 
+#### Finish
+
+Finish the current sequence of animations i.e. force to the last frame
+
+    Anima.finish([performCallback])
+
+or
+
+    runner.finish([performCallback])
+
+Finish takes an optional `performCallback` boolean. If the boolean is not provided, it is assumed to be true. If the boolean is false, callbacks will then not fire.
+
 ## Limitations
 
-* Anima currently does not support timing functions. This should not be a difficult fix.
 * Since this is CSS based, don't apply multiple animations on a single element at once. It's ok to have multiple properties in one animation unit, but don't apply multiple animation units concurrently on one element. Bad things will happen
 * The list of supported CSS properties is currently very limited. It will be added as I use and require more. Feel free to make a pull request or feature request
                                            
