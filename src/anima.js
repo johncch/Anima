@@ -9,13 +9,13 @@
 // 4. Cancel existing animation queues
 // 5. Fallback to simple CSS styles if the browser does not support CSS transitions
 //
-// Anima 0.2
+// Anima 0.3
 //
 // (c) 2012 Chong Han Chua
 //
 // Anima may be freely distributed under the MIT license
 // http://github.com/johncch/Anima
-var Anima = (function() {
+;(function() {
 
 	var Anima = {};
 
@@ -55,7 +55,7 @@ var Anima = (function() {
 	// This is a convenience object so that it generates the correct string constants
 	// for each vendor. This is necessary only because of the pain in the ass nature
 	// of vendor support.
-	CONSTANTS = (function() {
+	var CONSTANTS = (function() {
 		var constants = {};
 		constants.Transform = PREFIX + "Transform";
 		constants.CSSTransform = "-" + PREFIX.toLowerCase() + "-transform";
@@ -87,15 +87,19 @@ var Anima = (function() {
 		TimingFunction : "default"
 	};
 
-	// Parse transitions take a list of supplied options and parse them into a simplified
-	// list of objects.
-	//
-	// @return - an object containing an array of keys and an object containing css 
-	//     value and properties
-	Anima.parseTransitions = function(options) {
+
+    /**
+     * Parse transitions take a list of supplied options and parse them into a simplified
+     * list of objects.
+     * @param {Object} options containing key value pair
+     * @param {Element} el provided for reference
+     * @return - an object containing an array of keys and an object containing css value and properties
+     */
+	Anima.parseTransitions = function(options, el) {
 		var keys = [];
 		var styles = {};
 		for (var key in options) {
+            if (!options.hasOwnProperty(key)) continue;
 			if (TRANSFORM_PROPERTIES.indexOf(key) != -1) {
 				if (keys.indexOf(CONSTANTS.CSSTransform) == -1)
 					keys.push(CONSTANTS.CSSTransform);
@@ -108,7 +112,7 @@ var Anima = (function() {
 				if (keys.indexOf(key) == -1)
 					keys.push(key);
 				
-				styles[key] = Anima.parseParams(options[key], key);
+				styles[key] = Anima.parseParams(options[key], key, el);
 			}
 		}
 
@@ -172,15 +176,22 @@ var Anima = (function() {
 			result.callback = callback;
 		}
 		
-		result.element = (result.element instanceof jQuery) ? result.element[0] : result.element;
+		result.element = (jQuery && result.element instanceof jQuery) ? result.element.get() : result.element;
+		if (result.element.length && result.element.length == 1) {
+			result.element = result.element[0];
+		}
 		return result;
 	};
 
 
 
-	// Takes in a param and parse them to the correct unit based on the css property
-	// that it is modifying
-	Anima.parseParams = function(value, key) {
+	/**
+	 * Takes in a param and parse them to the correct unit based on the css property that it is modifying
+     * @param {*} value
+     * @param {String} key
+     * @param {Element} el for relative measures
+	 */
+	Anima.parseParams = function(value, key, el) {
 		var units, defaultUnit;
 		switch(key) {
 			case "width":
@@ -189,12 +200,25 @@ var Anima = (function() {
 			case "top":
 				units = ["px", "em", "pt"];
 				if (typeof value == "string") {
+                    // Check for relative modifications
+                    if (value.charAt(1) == "=") {
+                        var computed = document.defaultView.getComputedStyle(el, null);
+
+                        var curVal = el.style[key] || el.currentStyle[key] || computed.getPropertyValue(key);
+                        curVal = parseInt(curVal, 10);
+                        var num = parseInt(value.substr(2), 10);
+                        var modifier = (value.charAt(0) == "+") ? 1 : -1 ;
+                        return (curVal + (num * modifier) ) + "px";
+                    }
+
+                    // Check for units specified
 					for(var i = 0; i < units.length; i++) {
 						var regex = new RegExp("" + units[i] + "$");
 						if(value.match(regex)) {
 							return value;
 						}
 					}
+                    // Else parse into pixels
 					return parseInt(value, 10) + "px";
 				} else {
 					return value + "px";
@@ -234,28 +258,27 @@ var Anima = (function() {
 	// Callbacks are asynchronous.
 	//
 	// How to use:
-	// var animation = Anima.animation(el, properties, duration [, delay] [, timingFunction] [, callback]
+	// var animation = Anima.Animation(el, properties, duration [, delay] [, timingFunction] [, callback]
 	Anima.Animation = function(el, properties, duration, delay, timingFunction, callback) {
 		var args = Anima.parseArguments(el, properties, duration, delay, timingFunction, callback);	
 		
 		this.element = args.element;
-		var parseResults = Anima.parseTransitions(args.properties);
+        this.properties = args.properties;
+        this.duration = args.duration;
+        this.delay = args.delay;
+        this.timingFunction = args.timingFunction;
 
-		this.style = {};
-		this.style[CONSTANTS.TransitionProperty] = parseResults.keys.join(", ");
-		this.style[CONSTANTS.TransitionDuration] = Anima.parseTime(args.duration) || Anima.Defaults.Duration;
-		this.style[CONSTANTS.TransitionDelay] = Anima.parseTime(args.delay) || Anima.Defaults.Delay;
-		this.style[CONSTANTS.TransitionTimingFunction] = args.timingFunction || Anima.Defaults.TimingFunction;
-
-		this.properties = parseResults.styles;
+		// this.properties = parseResults.styles;
 		this.callback = args.callback;
 		this.completionHandler = null;
 
 		// This code sets the element with the current CSS property. This is nessary
 		// because Firefox requires an origin value otherwise it will not animate
 		var computed = document.defaultView.getComputedStyle(this.element, null);
-		for(var i = 0; i < parseResults.keys.length; i++) {
-			var key = parseResults.keys[i];
+		// for(var i = 0; i < parseResults.keys.length; i++) {
+        for (var key in this.properties) {
+            if (!this.properties.hasOwnProperty(key)) continue;
+			// var key = parseResults.keys[i];
 			debug("style: " + this.element.style[key]);
 			if (!this.element.style[key]) {
 				if (this.element.currentStyle) {
@@ -270,14 +293,25 @@ var Anima = (function() {
 	};
 
 
-	// This is where the animation is actually executed
-	Anima.Animation.prototype.run = function(_innerCallback) {
+    /**
+     * The animation is executed here
+     * @param {Function} [_innerCallback]
+     */
+    Anima.Animation.prototype.run = function(_innerCallback) {
+
+        var parseResults = Anima.parseTransitions(this.properties, this.element);
+
+        this.style = {};
+        this.style[CONSTANTS.TransitionProperty] = parseResults.keys.join(", ");
+        this.style[CONSTANTS.TransitionDuration] = Anima.parseTime(this.duration) || Anima.Defaults.Duration;
+        this.style[CONSTANTS.TransitionDelay] = Anima.parseTime(this.delay) || Anima.Defaults.Delay;
+        this.style[CONSTANTS.TransitionTimingFunction] = this.timingFunction || Anima.Defaults.TimingFunction;
 
 		// For the CSS3 transition case, setup the callbacks and properties
 		if(CSS3_TRANSITIONS) {
 			// Fixes the flickering in Chrome
 			// TODO need to figure out how to better integrate
-			this.element.style[CONSTANTS.BackfaceVisibility] = "hidden";
+			// this.element.style[CONSTANTS.BackfaceVisibility] = "hidden";
 
 			if (this.callback || _innerCallback) {
 				debug("setting up callback for " + CONSTANTS.TransitionEnd);
@@ -307,9 +341,9 @@ var Anima = (function() {
 			}	
 		} 
 
-		for (var css in this.properties) {
-			debug("executing " + css + ": " + this.properties[css]);
-			this.element.style[css] = this.properties[css];
+		for (var css in parseResults.styles) {
+			debug("executing " + css + ": " + parseResults.styles[css]);
+			this.element.style[css] = parseResults.styles[css];
 		}
 		
 		// For the non CSS3 transition case, call the callbacks immediately.
@@ -352,7 +386,6 @@ var Anima = (function() {
 	// only adds to the current frame.
 	Anima.Frame.prototype.queue = function(el, properties, duration, delay, timingFunction, callback) {
 		var args = Anima.parseArguments(el, properties, duration, delay, timingFunction, callback);
-
 		if (args.element.length && args.element.length >= 1) {
 			for (var i = 0; i < args.element.length; i++) {
 				var _el = args.element[i];
@@ -378,7 +411,7 @@ var Anima = (function() {
 		var concurrentCB = function() {
 			debug("run concurrent callback " + cbLen);
 			if ((--cbLen) === 0 && (frameCallback || runCallback)) {
-				if (frameCallback) 
+				if (frameCallback)
 					frameCallback.call();
 				
 				if (runCallback) {
@@ -511,6 +544,7 @@ var Anima = (function() {
 	// @returns the frame object
 	Anima.frame = function(_operations, callback) {
 		debug("framing");
+		_operations = _operations || [];
 		var frame = new Anima.Frame();
 		for (var i = 0; i < _operations.length; i++) {
 			var op = _operations[i];
@@ -556,9 +590,12 @@ var Anima = (function() {
 		}
 	};
 
-	// Finishes the current animation sequence immediately, i.e. apply all the 
-	// CSS properties immediately and performs all callbacks if performCallback
-	// is not set to false
+    /**
+     * Finishes the current animation sequence immediately, i.e. apply all the
+     * CSS properties immediately and performs all callbacks if performCallback
+     * is not set to false
+     * @param {Function} performCallback
+     */
 	Anima.finish = function(performCallback) {
 		performCallback = (performCallback === undefined) ? true : performCallback;
 		for (var i = 0; i < runners.length; i++) {
@@ -566,5 +603,26 @@ var Anima = (function() {
 		}
 	};
 
-	return Anima;
-})();
+    /**
+     * Helper function to set CSS properties onto elements. The reason for the existance
+     * of this function to supplement jQuery css methods since it doesn't normalize for
+     * all browsers. Most of the time, before an animation, we would want to reset certain
+     * css values and there is currently no easy way to do this.
+     * @param {Object} element
+     * @param {Object} properties
+     */
+    Anima.css = function(element, properties) {
+        // Normalize
+        var _element = (jQuery && element instanceof jQuery) ? element.get() : element;
+        if (_element.length && _element.length == 1) {
+            _element = _element[0];
+        }
+        var parseResults = Anima.parseTransitions(properties, _element);
+        for (var css in parseResults.styles) {
+            debug("executing " + css + ": " + parseResults.styles[css]);
+            _element.style[css] = parseResults.styles[css];
+        }
+    };
+
+	this.Anima = Anima;
+})(this);

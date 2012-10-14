@@ -51,6 +51,8 @@ Anima now supports an alternate object notation
 
 Remember that all animations are queued up until the play function is called. If you call queue multiple times, each animation is add to the end of the queue. When the `play()` function is called, they will run sequentially.
 
+### Frames
+
 To run animations concurrently, Anima introduces the concept of a frame:
 
     var frame = new Anima.Frame();
@@ -82,7 +84,21 @@ By queuing animations onto a frame, all animation units in the frame will be pla
     ]
     Anima.play();
 
-All play methods return a `Runner` object. The `Runner` object allows you to cancel a series of animations by calling:
+The `Anime.frame` method also returns an `Anima.Frame()` object, allowing a more simplistic syntax such as
+
+    var frame = Anima.frame();
+    frame.queue({
+    	element: el,
+    	properties: { left: 100 },
+    	duration: 100
+    });
+    Anima.play();
+    
+The `Anima.frame()` method adds the frame into the global Anima play queue, so there is no need to add it in again as per the example above.
+
+### Runner
+
+All play methods return a `Runner` object. The `Runner` object is responsible for playing the sequence of animations correctly, and thus also allows you to cancel a series of animations by calling:
 
     var runner = Anima.play();
     // ... some code
@@ -115,7 +131,15 @@ or
 	     callback: (callback function | optional)
 	})
 
-returns the Anima object
+returns the Anima object.
+
+The syntax of a property is generally any CSS acceptable value:
+
+	{
+		left: 100, // "defaults to px"
+		right: "100px",
+		top: "+=100px" // we now support relative positions
+	}
     
 #### Frame
     
@@ -202,10 +226,16 @@ finishes the animation runned by the current runner. Finish takes an optional `p
 * Since this is CSS based, don't apply multiple animations on a single element at once. It's ok to have multiple properties in one animation unit, but don't apply multiple animation units concurrently on one element. Bad things will happen
 * The list of supported CSS properties is currently very limited. It will be added as I use and require more. Feel free to make a pull request or feature request
                                            
+## Version Information
+* 0.3 - Added relative animations
+* 0.2 - Cleaned up API and added multiple property syntax
+* 0.1 - Initial release
+
+
 ## License                                                                      
 (The MIT License)
 
-Copyright (c) 2012 Chong Han Chua <johncch@live.com>
+Copyright (c) 2012 Chong Han Chua <johncch@outlook.com>
 
 Permission is hereby granted, free of charge, to any person obtaining a copy of this software and associated documentation files (the 'Software'), to deal in the Software without restriction, including without limitation the rights to use, copy, modify, merge, publish, distribute, sublicense, and/or sell copies of the Software, and to permit persons to whom the Software is furnished to do so, subject to the following conditions:
 
