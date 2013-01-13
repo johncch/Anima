@@ -1,20 +1,21 @@
-// Anima: A simple CSS transisions helper library
-// 
-// Anima is designed to enable CSS transitions via a simple JavaScript api.
-// This library is designed to support:
-//
-// 1. Queuing a series of animations
-// 2. Running a series of animations concurrently
-// 3. Having callbacks at the end of each animation, or an animation frame
-// 4. Cancel existing animation queues
-// 5. Fallback to simple CSS styles if the browser does not support CSS transitions
-//
-// Anima 0.3
-//
-// (c) 2012 Chong Han Chua
-//
-// Anima may be freely distributed under the MIT license
-// http://github.com/johncch/Anima
+/**
+ * Anima: A simple CSS transisions helper library
+ * 
+ * Anima is designed to enable CSS transitions via a simple JavaScript api.
+ * This library is designed to support:
+ *
+ * 1. Queuing a series of animations
+ * 2. Running a series of animations concurrently
+ * 3. Having callbacks at the end of each animation, or an animation frame
+ * 4. Cancel existing animation queues
+ * 5. Fallback to simple CSS styles if the browser does not support CSS transitions
+ *
+ * Anima 0.4
+ *
+ * @preserve (c) 2012-3 Chong Han Chua <johncch@outlook.com>
+ * Anima may be freely distributed under the MIT license
+ * http://github.com/johncch/Anima
+ */
 ;(function() {
 
 	var Anima = {};
@@ -74,8 +75,9 @@
 	})();
 
 	// The list of currently supported transforms.
+	// Modify here to add new properties
 	var TRANSFORM_PROPERTIES = ["scale"];
-	var CSS_PROPERTIES = ["top", "left", "opacity", "width", "height"];
+	var CSS_PROPERTIES = ["top", "bottom", "left", "right", "opacity", "width", "height"];
 
 	Anima.Defaults = {
 		Duration: "0.5s",
@@ -136,9 +138,30 @@
 		}
 	};
 
-	// Normalize the arguments into the correct form
+	
+	function CSSTimeToMs(time) {
+		console.log(typeof time);
+		if (typeof time == "string") {
+			if (time.match(/ms$/)) {
+				return parseInt(time);
+			} else if (time.match(/s$/)) {
+				return parseFloat(time) * 1000;
+			}
+			return parseInt(time)
+		}
+		return time;
+	}
+
+	/**
+	 * Normalize the arguments into the correct form
+	 * @param {Object} el can be a properties object, or the element itself
+	 * @param {Object} [properties]
+	 * @param {String|Number} [duration]
+	 * @param {String|Number} [delay]
+	 * @param {String} [timingFunction]
+	 * @param {Function} [callback]
+	 */
 	Anima.parseArguments = function(el, properties, duration, delay, timingFunction, callback) {
-		// normalize for jQuery
 		var result = {};
 		if (el.element) {
 			// This is an argument object
@@ -293,7 +316,7 @@
      */
     Anima.Animation.prototype.run = function(innerCallback) {
         DEBUG && console.log("[Anima] (Animation) Running animation");
-        var transitions = Anima.parseTransitions(this.properties, this.element);
+        var transitions = this.transitions = Anima.parseTransitions(this.properties, this.element);
 
         this.style = {};
         this.style[CONSTANTS.TransitionProperty] = transitions.keys.join(", ");
@@ -307,18 +330,18 @@
         this.style[CONSTANTS.TransitionTimingFunction] = this.timingFunction || Anima.Defaults.TimingFunction;
 
 		// For the CSS3 transition case, setup the callbacks and properties
-		if(CSS3_TRANSITIONS) {
+		if (CSS3_TRANSITIONS) {
 			if (this.callback || innerCallback) {
 				// DEBUG && console.log("setting up callback for " + CONSTANTS.TransitionEnd);
 				var callback = this.callback,
 				    el = this.element,
 				    style = this.style,
-                    totalTime = parseFloat(duration) + parseFloat(delay) + MAX_LAPSE_DUR,
-                    timeout;
+                    totalTime = CSSTimeToMs(duration) + CSSTimeToMs(delay) + MAX_LAPSE_DUR,
+					self = this;
 
 				var completionHandler = this.completionHandler = function() {
 					DEBUG && console.log("[Anima] (Animation) Animation completed");
-                    clearTimeout(timeout);
+                    clearTimeout(self.timeout);
 					el.removeEventListener(CONSTANTS.TransitionEnd, completionHandler);
 					// Remove the animation definition here
 					for (var key in style) {
@@ -331,7 +354,7 @@
 				};
 
 				this.element.addEventListener(CONSTANTS.TransitionEnd, this.completionHandler);
-                timeout = setTimeout(function() { completionHandler(); }, totalTime);
+                this.timeout = setTimeout(function() { completionHandler(); }, totalTime);
 			}
 
 			for (var key in this.style) {
@@ -359,6 +382,7 @@
      * animation is handled by CSS transitions, it cannot actually be stopped.
      */
 	Anima.Animation.prototype.abort = function() {
+		clearTimeout(this.timeout);
 		this.element.removeEventListener(CONSTANTS.TransitionEnd, this.completionHandler);
 	};
 
@@ -368,14 +392,12 @@
      */
 	Anima.Animation.prototype.finish = function(performCallback) {
 		performCallback = (performCallback === undefined) ? true : performCallback;
+		clearTimeout(this.timeout);
 		this.element.removeEventListener(CONSTANTS.TransitionEnd, this.completionHandler);
 		for (var key in this.style) {
 			this.element.style[key] = "";
 		}
-		for (var css in this.properties) {
-			DEBUG && console.log("executing " + css + ": " + this.properties[css]);
-			this.element.style[css] = this.properties[css];
-		}
+		Anima.css(this.element, this.properties);
 		if(performCallback && this.callback) this.callback.call(this.element);
 	};
 
@@ -487,6 +509,7 @@
 	Anima.Runner.prototype.run = function(callback) {
         var self = this,
 		    cbLen = this.operations.length;
+		this.callback = callback;
 
 		function runnerCallback() {
             DEBUG && console.log("[Anima] (Runner) Callback with cbLen %d", cbLen);
@@ -520,7 +543,10 @@
 		removeRunner(this);
 	};
 
-	// Finishes the animation immediately
+	/**
+	 * Finishes the animation immediately
+	 * @param {Boolean} [performCallback]
+	 */
 	Anima.Runner.prototype.finish = function(performCallback) {
 		performCallback = (performCallback === undefined) ? true : performCallback;
 		this.activeOp.finish(performCallback);
@@ -534,8 +560,10 @@
 
 	// ## Public APIs
 
-	// The queue function. An animation sequence is defined and then queued. The
-	// animation is not played immediately unti the play() function is called.
+	/**
+	 * The queue function. An animation sequence is defined and then queued. The
+	 * animation is not played immediately unti the play() function is called.
+	 */
 	Anima.queue = function(el, properties, duration, delay, timingFunction, callback) {
 		if (el instanceof Anima.Frame) {
 			operations.push(el);
@@ -559,19 +587,21 @@
 		return Anima;
 	};
 
-	// This is a convenience function to create a frame of animation. It takes in an
-	// array of objects:
-	//
-	// {
-	//     element: (Dom Element)
-	//     properties: (Object of key value pairs)
-	//     duration: (time in s or ms)
-	//     delay: (time in s or ms)
-	//     timingFunction: (string)
-	//     callback: (callback function
-	// }
-	//
-	// @returns the frame object
+	/**
+	 * This is a convenience function to create a frame of animation. It takes in an
+	 * array of objects:
+	 *
+	 * {
+	 *     element: (Dom Element)
+	 *     properties: (Object of key value pairs)
+	 *     duration: (time in s or ms)
+	 *     delay: (time in s or ms)
+	 *     timingFunction: (string)
+	 *     callback: (callback function
+	 * }
+	 *
+	 * @returns the frame object
+	 */
 	Anima.frame = function(_operations, callback) {
 		_operations = _operations || [];
 		var frame = new Anima.Frame();
@@ -581,38 +611,54 @@
 		}
 		frame.complete(callback);
 		operations.push(frame);
-		DEBUG && console.log(operations);
+		// DEBUG && console.log(operations);
 		return frame;
 	};
 
-	// Play all the animations currently in the queue, sequentially. The callback
-	// is optional
-	Anima.play = function(_callback) {
+	/**
+	 * Play all the animations currently in the queue, sequentially. The callback
+	 * is optional
+	 * @param {Function} [callback]
+	 */	 
+	Anima.play = function(callback) {
 		var runner = new Anima.Runner(operations);
 		operations = [];
-		runner.run(_callback);
+		runner.run(callback);
 		return runner; 
 	};
 
-	// Plays only one animation in the queue. The callback is optional.
-	Anima.step = function(_callback) {
+	/**
+	 * Plays only one animation in the queue.
+	 * @param {Function} [callback]
+	 */
+	Anima.step = function(callback) {
         var animation = operations.shift(),
 		    runner = new Anima.Runner(animation);
-		runner.run(_callback);
+		runner.run(callback);
 		return runner;
 	};
 
-	// Plays one animation immediately. This is a convenience method that essentially
-	// calls a queue then a step immediately.
+	/**
+	 * Plays one animation immediately. This is a convenience method that essentially
+	 * calls a queue then a step immediately.
+	 * @param {Object} el can be a properties object, or the element itself
+	 * @param {Object} [properties]
+	 * @param {String|Number} [duration]
+	 * @param {String|Number} [delay]
+	 * @param {String} [timingFunction]
+	 * @param {Function} [callback]
+	 */
 	Anima.animate = function(el, properties, duration, delay, timingFunction, callback) {
 		Anima.queue(el, properties, duration, delay, timingFunction, callback);
 		Anima.step();
 	};
 
-	// Aborts all currently running animations.
-	// Since this is CSS3 animations, you can't actually stop it halfway. What 
-	// this method actually does though is cancelling any queued up animations,
-	// and preventing existing handlers from firing.
+	/**
+	 * Aborts all currently running animations.
+	 * Since this is CSS3 animations, you can't actually stop it halfway. What 
+	 * this method actually does though is cancelling any queued up animations,
+	 * and preventing existing handlers from firing.
+	 */
 	Anima.abort = function() {
 		for (var i = 0; i < runners.length; i++) {
 			runners[i].abort();
@@ -623,7 +669,7 @@
      * Finishes the current animation sequence immediately, i.e. apply all the
      * CSS properties immediately and performs all callbacks if performCallback
      * is not set to false
-     * @param {Function} performCallback
+     * @param {Boolean} performCallback
      */
 	Anima.finish = function(performCallback) {
 		performCallback = (performCallback === undefined) ? true : performCallback;

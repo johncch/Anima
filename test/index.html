@@ -436,17 +436,16 @@
 				Anima.queue(testBlock, {
 						left: 100,
 						scale: 1.5
-					}, 1, function() {
+						}, 1, function() {
 						ok(true, "first finish");	
 				});
 				Anima.queue(testBlock, {
 						"left": 200,
 						"scale": 1,
-					}, 1, function() {
+						}, 1, function() {
 						ok(true, "second finish");	
 				});
 				Anima.play(function() {
-					console.log("hey");
 					ok(true, "all finished!");	
 				});
 				setTimeout(function() {
