@@ -140,7 +140,7 @@
 
 	
 	function CSSTimeToMs(time) {
-		console.log(typeof time);
+		// console.log(typeof time);
 		if (typeof time == "string") {
 			if (time.match(/ms$/)) {
 				return parseInt(time);
